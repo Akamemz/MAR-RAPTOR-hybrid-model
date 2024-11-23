@@ -179,3 +179,5 @@ data_test
 *.sqlite3
 .ragatouille
 *chroma_data
+
+config.ini

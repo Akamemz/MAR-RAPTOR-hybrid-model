@@ -1,0 +1,41 @@
+{
+    "Is Hirschsprung disease a Mendelian or a multifactorial disorder?": {
+        "response": "Based on the provided context, Hirschsprung disease (HSCR) is mentioned as having a complex genetic etiology with several genes being described as associated with either isolated or syndromic forms. This suggests that HSCR is likely a multifactorial disorder, meaning that it is caused by the interaction of multiple genetic and environmental factors rather than a single Mendelian (single-gene) mutation."
+    },
+    "List signaling molecules (ligands) that interact with the receptor EGFR?": {
+        "response": "Based on the provided context, the signaling molecules (ligands) that interact with the receptor EGFR are:\n\n1. Epidermal growth factor (EGF)\n2. Betacellulin (BTC)\n3. Heparin-binding EGF-like growth factor (HB-EGF)\n4. Amphiregulin (AR)\n5. Epiregulin (EPR)\n6. Transforming growth factor-alpha (TGF-\u03b1)\n7. Epigen (EPG)\n\nThese ligands bind to the extracellular domain of EGFR, leading to conformational changes, dimerization, and activation of the receptor."
+    },
+    "Are long non-coding RNAs spliced?": {
+        "response": "Based on the provided context, it does not appear that the question of whether long non-coding RNAs (lncRNAs) are spliced is addressed in the two articles mentioned. The articles focus on different topics, such as HER-2/neu expression in prostate cancer and the effects of potassium ions on astrocytes.\n\nHowever, in general, long non-coding RNAs are known to undergo alternative splicing, which means that they can have their exons (coding regions) rearranged to produce different isoforms. This can result in different functional RNAs with distinct properties and functions.\n\nIf you are looking for information on the splicing of lncRNAs, I recommend searching for more specific and recent studies on the topic. You can also explore online databases and resources, such as the National Center for Biotechnology Information (NCBI) or the European Molecular Biology Laboratory (EMBL), which provide information on RNA splicing and its regulation."
+    },
+    "Is RANKL secreted from the cells?": {
+        "response": "This question is not related to the provided articles. However, based on general knowledge, RANKL (Receptor Activator of NF-\u03baB Ligand) is a protein that is secreted by various cell types, including osteoblasts, macrophages, and T cells. It plays a key role in the development and function of osteoclasts, which are responsible for bone resorption.\n\nRANKL is secreted in response to various stimuli, such as inflammatory cytokines, and can bind to its receptor RANK on the surface of osteoclast precursor cells, leading to the activation and differentiation of osteoclasts.\n\nIn the context of ovarian cancer, RANKL has been implicated in the development and progression of the disease. However, the specific mechanism of RANKL secretion and its role in ovarian cancer are not directly related to the articles provided."
+    },
+    "Which miRNAs could be used as potential biomarkers for epithelial ovarian cancer?": {
+        "response": "According to the context, the miRNAs that could be used as potential biomarkers for epithelial ovarian cancer are:\n\n1. miR-200a\n2. miR-100\n3. miR-141\n4. miR-200b\n5. miR-200c\n6. miR-203\n7. miR-510\n8. miR-509-5p\n9. miR-132\n10. miR-26a\n11. let-7b\n12. miR-145\n13. miR-182\n14. miR-152\n15. miR-148a\n16. let-7a\n17. let-7i\n18. miR-21\n19. miR-92\n20. miR-93"
+    },
+    "Which acetylcholinesterase inhibitors are used for treatment of myasthenia gravis?": {
+        "response": "According to the given context, Pyridostigmine and Neostygmine are acetylcholinesterase inhibitors that are used as first-line therapy for symptomatic treatment of myasthenia gravis."
+    },
+    "Has Denosumab (Prolia) been approved by FDA?": {
+        "response": "Based on the provided context, there is no information about Denosumab (Prolia) or its FDA approval. The provided articles are focused on topics such as long noncoding RNAs, reprogramming of leukemia cells into pluripotent stem cells, and candidate microRNA biomarkers in human epithelial ovarian cancer. Denosumab is not mentioned in these articles."
+    },
+    "Which are the different isoforms of the mammalian Notch receptor?": {
+        "response": "Based on the provided context, there is no mention of the mammalian Notch receptor or its isoforms. The text primarily focuses on the study of mammary epithelial cell (MEC) development, differentiation, and breast cancer, discussing the use of cationic emulsions and the role of epidermal growth factor receptor (EGFR) and its ligands in these processes. If you have any further questions or would like to discuss a specific topic, I'm here to help!"
+    },
+    "Orteronel was developed for treatment of which cancer?": {
+        "response": "According to the given context, Orteronel was developed for the treatment of castration-resistant prostate cancer."
+    },
+    "Is the monoclonal antibody Trastuzumab (Herceptin) of potential use in the treatment of prostate cancer?": {
+        "response": "Based on the provided context, there is no mention of Trastuzumab (Herceptin) or its potential use in the treatment of prostate cancer. The articles and studies mentioned focus on treatments for prostate cancer, such as combination immunotherapy, cytotoxic therapy, and emulsion-based delivery systems, but Trastuzumab is not mentioned.\n\nTrastuzumab is a monoclonal antibody that is commonly used in the treatment of HER2-positive breast cancer, not prostate cancer. Therefore, it is unlikely that Trastuzumab would be of potential use in the treatment of prostate cancer based on the provided context."
+    },
+    "Which are the Yamanaka factors?": {
+        "response": "The Yamanaka factors are not mentioned in the provided context. The text discusses various research papers on different topics, including genetics, neurology, and cancer. The Yamanaka factors are a set of four transcription factors (Oct4, Sox2, Nanog, and Klf4) that were identified by Shinya Yamanaka in 2006 as being able to reprogram adult cells into induced pluripotent stem cells (iPSCs). However, this topic is not relevant to the provided context."
+    },
+    "Where is the protein Pannexin1 located?": {
+        "response": "Based on the context, I found that Pannexin1 is a protein that is located on the plasma membrane of various cells, including neurons, astrocytes, and epithelial cells. It is involved in the formation of gap junctions and the release of ATP and other signaling molecules."
+    },
+    "Which currently known mitochondrial diseases have been attributed to POLG mutations?": {
+        "response": "This context appears to be about a research paper on miRNA expression profiling and its application in ovarian cancer, as well as a different paper about identifying biomarkers for ovarian cancer. However, I couldn't find any information about POLG mutations and mitochondrial diseases in these papers.\n\nIf you're looking for information on POLG mutations and mitochondrial diseases, I can suggest searching for relevant scientific articles or databases. POLG (polymerase gamma) is an enzyme that plays a crucial role in the maintenance of mitochondrial DNA. Mutations in the POLG gene have been associated with several mitochondrial disorders, including:\n\n1. Alpers syndrome: a rare genetic disorder characterized by progressive liver failure, seizures, and intellectual disability.\n2. Myocerebrohepatopathies spectrum disorders: a group of disorders that affect the muscles, brain, and liver.\n3. Mitochondrial DNA depletion syndrome: a group of disorders that result from the depletion of mitochondrial DNA.\n4. Epilepsy and encephalopathy: a condition characterized by seizures and intellectual disability.\n\nThese are just a few examples, and there may be other mitochondrial diseases associated with POLG mutations. If you're looking for more information, I recommend searching reputable scientific databases such as PubMed or searching for"
+    }
+}

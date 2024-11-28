@@ -127,35 +127,45 @@
 ---
 ### Date: Nov 19, 2024
 
-## Evaluation Results of Generation across different RAGs
-## Summary of Questions Across JSON Files (MAR, RAG, RAPTOR)
+# Evaluation Results of Generation across Different RAGs
+## Summary of Questions Across JSON Files (MAR, RAG, RAPTOR, RAPTOR+Memory)
 
 ### 1. Total Questions
 - **Total Questions**: 13
-  - **Answered**: 8 questions were answered in at least one JSON file.
-  - **Very Close to Ideal**: 5 questions have answers that are very close to the ideal answer.
-  - **Correct Answer**: 5 questions were correctly answered exactly as intended.
+  - **Answered**: 12 questions were answered in at least one JSON file.
+  - **Very Close to Ideal**: 9 questions have answers that are very close to the ideal answer.
+  - **Correct Answer**: 7 questions were correctly answered exactly as intended.
 
 ### 2. Individual JSON Breakdown
 - **MAR**:
-  - **Answered**: 9 out of 13 questions
-  - **Very Close to Ideal**: 3
-  - **Correct Answer**: 4
+  - **Answered**: 11 out of 13 questions
+  - **Very Close to Ideal**: 7
+  - **Correct Answer**: 6
 - **RAG**:
-  - **Answered**: 9 out of 13 questions
-  - **Very Close to Ideal**: 4
-  - **Correct Answer**: 4
+  - **Answered**: 11 out of 13 questions
+  - **Very Close to Ideal**: 7
+  - **Correct Answer**: 5
 - **RAPTOR**:
-  - **Answered**: 6 out of 13 questions
-  - **Very Close to Ideal**: 1
-  - **Correct Answer**: 2
+  - **Answered**: 8 out of 13 questions
+  - **Very Close to Ideal**: 3
+  - **Correct Answer**: 3
+- **RAPTOR+Memory**:
+  - **Answered**: 10 out of 13 questions
+  - **Very Close to Ideal**: 6
+  - **Correct Answer**: 5
 
 ### 3. Overlap and Coverage
-- The **RAG** file had the highest alignment with ideal answers overall, both in the number of questions answered and those very close to the ideal.
-- **MAR** closely followed RAG in terms of answers provided, though fewer were "very close" to the ideal.
-- **RAPTOR** had the fewest answered questions and the least alignment with ideal answers, though it still provided correct answers for some questions.
+- The **MAR** and **RAG** files had the highest alignment with the ideal answers overall, both in terms of the number of questions answered and those very close to the ideal.
+- **RAPTOR+Memory** outperformed standard RAPTOR by improving the total number of answered questions and increasing the number of answers close to or matching the ideal.
+- **RAPTOR** provided the fewest answers and had the least alignment with the ideal answers, though it was able to deliver correct responses for some questions.
 
-These statistics show that while RAG and MAR files cover most questions, RAPTOR has a more limited range of answers.
+### 4. Insights
+- **MAR and RAG** are reliable in providing answers that align closely with the ideal answers, suggesting robust retrieval and generation capabilities.
+- **RAPTOR+Memory** demonstrates potential in leveraging memory augmentation to enhance retrieval accuracy compared to RAPTOR alone.
+- **RAPTOR** has limitations in coverage and alignment, but its correct answers suggest potential for improvement with further refinement.
+
+These results highlight the strengths of MAR and RAG in providing accurate and detailed answers, while RAPTOR+Memory shows promise as a memory-augmented system that enhances retrieval and generation. RAPTOR alone requires optimization to compete effectively.
+
 
 # Comparison of Ideal and System Answers
 

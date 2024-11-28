@@ -21,6 +21,7 @@
     - **Model Experimentation:** Tested different models for embeddings and evaluated their effectiveness.
     - **LLM Integration:** Integrated an initial version of a Language Model (LLM) into the pipeline.
 
+## Basic RAG Diagram
 ![Basic RAG Diagram](Basic_Rag.png)
 
 - **Action Items:**
@@ -73,7 +74,6 @@
     - **Embedding Models:** Trying different models for embedding to optimize the RAG system's performance.
     - **Chunking Method:** Experimenting with various chunking methods to improve text processing and retrieval efficiency.
     - **RAG Pipeline:** Developing a complete pipeline for RAG with comprehensive testing for all its components.
-    - **F-1 Score Evaluation:** Measuring the F-1 score of retrieval at different values of k to evaluate precision and recall in the retrieval process.
 
 - **Action Items:**
     * [&check;] Try different models for embedding and compare their results.
@@ -115,15 +115,19 @@
     * [ ] Start the report with metrics, and evaluation results, and create a diagram to visualize the evaluation process and proposed application.
 
 ---
-
+## Basic MAR Diagram
 ![Basic MAR Diagram](MAR_rag.png)
 
+## Basic RAPTOR Diagram
 ![Basic RAPTOR Diagram](RAPTOR_rag.png)
 
+## Basic ColBERT Diagram
 ![Basic ColBERT Diagram](ColBERT_rag.png)
 
 ---
+### Date: Nov 19, 2024
 
+## Evaluation Results of Generation across different RAGs
 ## Summary of Questions Across JSON Files (MAR, RAG, RAPTOR)
 
 ### 1. Total Questions
@@ -173,17 +177,17 @@ These statistics show that while RAG and MAR files cover most questions, RAPTOR 
 
 | ID | Question                                                                                           |  Frequency |
 |----|----------------------------------------------------------------------------------------------------|-------------------|
-| 1  | Is Hirschsprung disease a Mendelian or a multifactorial disorder?                                  | 1                 |
+| 1  | Is Hirschsprung disease a Mendelian or a multifactorial disorder?                                  | 2                 |
 | 2  | List signaling molecules (ligands) that interact with the receptor EGFR?                           | 4                 |
 | 3  | Are long non-coding RNAs spliced?                                                                  | 4                 |
 | 4  | Is RANKL secreted from the cells?                                                                  | 3                 |
 | 5  | Which miRNAs could be used as potential biomarkers for epithelial ovarian cancer?                  | 6                 |
-| 6  | Which acetylcholinesterase inhibitors are used for treatment of myasthenia gravis?                 | 1                 |
-| 7  | Has Denosumab (Prolia) been approved by FDA?                                                       | 1                 |
-| 8 | Which are the different isoforms of the mammalian Notch receptor?                                  | 1                 |
+| 6  | Which acetylcholinesterase inhibitors are used for treatment of myasthenia gravis?                 | 2                 |
+| 7  | Has Denosumab (Prolia) been approved by FDA?                                                       | 2                 |
+| 8 | Which are the different isoforms of the mammalian Notch receptor?                                  | 2                 |
 | 9 | Orteronel was developed for treatment of which cancer?                                             | 3                 |
 | 10 | Is the monoclonal antibody Trastuzumab (Herceptin) of potential use in the treatment of prostate cancer? | 7      |
 | 11 | Which are the Yamanaka factors?                                                                    | 7                 |
 | 12 | Where is the protein Pannexin1 located?                                                            | 4                 |
-| 13 | Which currently known mitochondrial diseases have been attributed to POLG mutations?               | 1                 |
+| 13 | Which currently known mitochondrial diseases have been attributed to POLG mutations?               | 2                 |
 

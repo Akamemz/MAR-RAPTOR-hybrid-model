@@ -76,11 +76,10 @@
     - **F-1 Score Evaluation:** Measuring the F-1 score of retrieval at different values of k to evaluate precision and recall in the retrieval process.
 
 - **Action Items:**
-    * [ ] Score RAG to assess its overall performance.
-    * [ ] Try different models for embedding and compare their results.
+    * [&check;] Try different models for embedding and compare their results.
     * [&check;] Experiment with different chunking methods to optimize the chunk size and method.
     * [&check;] Build a complete pipeline for the RAG system, ensuring all components are tested and functioning.
-    * [ ] Test and record the F-1 score of retrieval at different values of k (e.g., k=5, 10, 20) to assess retrieval quality.
+    * [&check;] Test and record the retrieval at different values of k (e.g., k=5, 10, 20) to assess retrieval quality.
 
 ---
 
@@ -93,11 +92,11 @@
     - **Documentation:** Properly document the embedding comparison process and results.
 
 - **Action Items:**
-    * [ ] Gather and prepare at least 50 not-damaged PDFs for testing.
-    * [ ] Implement the embedding process using both NVIDIA and open-source models.
-    * [ ] Define performance metrics for embedding evaluation in table format.
-    * [ ] Run embedding tests and evaluate results using the defined metrics.
-    * [ ] Document the process and findings from the embedding comparison.
+    * [&check;] Gather and prepare at least 50 not-damaged PDFs for testing.
+    * [&check;] Implement the embedding process using both NVIDIA and open-source models.
+    * [&check;] Define performance metrics for embedding evaluation in table format.
+    * [&check;] Run embedding tests and evaluate results using the defined metrics.
+    * [&check;] Document the process and findings from the embedding comparison.
 
 ---
 

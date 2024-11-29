@@ -1204,17 +1204,18 @@ def create_document_embeddings(
 
 class UnifiedRAPTORSystem:
     def __init__(
-            self,
-            embedding_model: HuggingFaceEmbedding,
-            vector_store: ChromaDBStore,
-            llm: HuggingFaceLLM,
-            embedding_model_sentece: SentenceTransformer,
-            cache_size: int = 1000,
-            cross_encoder_name: str = "cross-encoder/ms-marco-MiniLM-L-12-v2",
-            reranking_top_k: int = 10,
-            similarity_threshold: float = 0.65,
-            use_hybrid_search: bool = True,
-            logger: Optional[logging.Logger] = None,
+        self,
+        embedding_model: HuggingFaceEmbedding,
+        vector_store: ChromaDBStore,
+        llm: HuggingFaceLLM,
+        memory_bank: MemoryDB,
+        embedding_model_sentece: SentenceTransformer,
+        cache_size: int = 1000,
+        cross_encoder_name: str = "cross-encoder/ms-marco-MiniLM-L-12-v2",
+        reranking_top_k: int = 10,
+        similarity_threshold: float = 0.65,
+        use_hybrid_search: bool = True,
+        logger: Optional[logging.Logger] = None,
     ):
         # Core components
         self.embedding_model = embedding_model
@@ -1237,18 +1238,10 @@ class UnifiedRAPTORSystem:
         self.logger = logger or self._setup_default_logger()
 
         # Initialize memory bank
-        self.memory_bank = MemoryDB(embedding_model=embedding_model)
+        self.memory_bank = memory_bank
 
-    def prepopulate_memory_bank(self, questions_answers: List[Tuple[str, str]]):
-        """Directly delegate prepopulation to the MemoryDB component."""
-        self.memory_bank.prepopulate_memory_bank(questions_answers)
-        self.logger.info(f"Memory bank prepopulated with {len(questions_answers)} entries.")
-
-    def initialize_bm25(self, documents: List[Dict[str, Any]]):
-        """Initialize the BM25 model with tokenized documents."""
-        self._doc_mapping = documents  # Save the original document mappings
-        tokenized_corpus = [doc['content'].lower().split() for doc in documents]
-        self._bm25 = BM25Okapi(tokenized_corpus)
+        # Historical query feedback
+        self.query_feedback = {}
 
     @staticmethod
     def _setup_default_logger() -> logging.Logger:
@@ -1299,18 +1292,69 @@ class UnifiedRAPTORSystem:
             self.logger.error(f"Failed to index documents: {str(e)}")
             raise
 
+    def compute_query_complexity(self, query: str) -> float:
+        """Compute the complexity of a query."""
+        tokens = query.lower().split()
+        unique_tokens = set(tokens)
+        return len(unique_tokens) / len(tokens)  # Diversity ratio
+
+    def update_feedback(self, query: str, success: bool) -> None:
+        """Update feedback for a query."""
+        if query not in self.query_feedback:
+            self.query_feedback[query] = {"success": 0, "total": 0}
+        self.query_feedback[query]["success"] += int(success)
+        self.query_feedback[query]["total"] += 1
+
+    def get_success_rate(self, query: str) -> float:
+        """Retrieve historical success rate for a query."""
+        if query not in self.query_feedback:
+            return 1.0  # Default high success rate
+        data = self.query_feedback[query]
+        return data["success"] / data["total"]
+
+    def adjust_similarity_threshold(self, query: str) -> float:
+        """Adjust similarity threshold dynamically."""
+        base_threshold = self.similarity_threshold
+        max_threshold = 0.8
+        min_threshold = 0.2
+
+        # Dynamic factors
+        complexity = self.compute_query_complexity(query)
+        complexity_factor = min(complexity / 10, 1.0)  # Normalize complexity to [0, 1]
+        success_rate = self.get_success_rate(query)
+        feedback_factor = 1 - success_rate
+
+        # Dynamic threshold calculation
+        dynamic_threshold = base_threshold + 0.2 * complexity_factor - 0.2 * feedback_factor
+        adjusted_threshold = max(min_threshold, min(max_threshold, dynamic_threshold))
+        self.logger.info(f"Adjusted threshold for query '{query}': {adjusted_threshold}")
+        return adjusted_threshold
+
+    def prepopulate_memory_bank(self, questions_answers: List[Tuple[str, str]]) -> None:
+        """Populate memory bank with question-answer pairs."""
+        self.memory_bank.prepopulate_memory_bank(questions_answers)
+        self.logger.info(f"Memory bank prepopulated with {len(questions_answers)} entries.")
+
+    def initialize_bm25(self, documents: List[Dict[str, Any]]) -> None:
+        """Initialize BM25 model with tokenized documents."""
+        self._doc_mapping = documents  # Save the original document mappings
+        tokenized_corpus = [doc['content'].lower().split() for doc in documents]
+        self._bm25 = BM25Okapi(tokenized_corpus)
+
     def query(self, question: str, n_results: int = 3) -> str:
         """Process a question and return an answer."""
         try:
-            # Step 1: Embed the question for retrieval
+            # Step 1: Embed the query for retrieval
             question_embedding = self.embedding_model.embed([question])[0]
 
-            # Step 2: Attempt to retrieve from MemoryDB
+            # Step 2: Adjust similarity threshold dynamically
+            dynamic_threshold = self.adjust_similarity_threshold(question)
+
+            # Step 3: Attempt to retrieve from MemoryDB
             memory_results, similarity_scores = self.memory_bank.retrieve_top_k(question_embedding, k=n_results)
 
-            if memory_results and all(score >= self.memory_bank.similarity_threshold for score in similarity_scores):
-                context = memory_results[0]  # Only the top relevant answer
-                # context = "\n\n".join(memory_results)  # Combine top memory results for richer context
+            if memory_results and all(score >= dynamic_threshold for score in similarity_scores):
+                context = memory_results[0]  # Top relevant answer
                 self.logger.info("Retrieved context from MemoryDB.")
             else:
                 # Fallback to ChromaDBStore
@@ -1318,35 +1362,29 @@ class UnifiedRAPTORSystem:
                     query_embeddings=[question_embedding.tolist()],
                     n_results=n_results
                 )
-
                 relevant_docs = results.get("documents", [])
                 if not relevant_docs:
                     self.logger.warning("No relevant documents found for query.")
                     return "No relevant information found to answer the question."
-
-                # Combine document contents for context
-                context = "\n\n".join(relevant_docs[0])
+                context = "\n\n".join(relevant_docs[0])  # Combine retrieved documents
                 self.logger.info("Retrieved context from ChromaDBStore.")
 
-            # Step 3: Generate answer using LLM
+            # Step 4: Generate response using LLM
             answer = self.llm.generate_response_with_context(
                 context=context,
                 prompt=question,
                 max_new_tokens=250
             )
 
+            # Step 5: Log success and return
+            self.update_feedback(question, success=True)
             self.logger.info(f"Successfully generated answer for question: {question[:50]}...")
             return answer
 
         except Exception as e:
             self.logger.error(f"Error processing query: {str(e)}")
+            self.update_feedback(question, success=False)
             raise
-
-    def _hybrid_search(self, query: str, n_results: int = 10) -> List[Dict[str, Any]]:
-        """Perform hybrid search combining semantic and keyword-based retrieval."""
-        semantic_results = self._semantic_search(query, n_results)
-        keyword_results = self._bm25_search(query, n_results)
-        return self._merge_search_results(semantic_results, keyword_results)
 
     def _semantic_search(self, query: str, n_results: int = 10) -> List[Dict[str, Any]]:
         """Perform semantic search using vector store."""
@@ -1371,45 +1409,6 @@ class UnifiedRAPTORSystem:
                 'score': 1 - dist  # Convert distance to similarity score
             })
         return formatted_results
-
-    def _aggregate_context(self, contexts: List[str], query: str) -> str:
-        """Combine multiple contexts into a coherent response."""
-        prompt = f"""Combine the following contexts to answer the question:\n\n{query}\n\nContexts:\n{contexts}"""
-        return self.llm.generate_response_with_context(prompt=prompt, context="", max_new_tokens=500)
-
-    def _generate_response(self, query: str, context: str) -> str:
-        """Generate the final response based on the aggregated context."""
-        prompt = f"""Answer the question based on the context below:\n\nContext: {context}\n\nQuestion: {query}"""
-        return self.llm.generate_response_with_context(prompt=prompt, context=context, max_new_tokens=300)
-
-    def _get_relevant_history(self, query: str) -> List[QueryResult]:
-        """Retrieve relevant past queries for context."""
-        if not self.prompt_transformer.history:
-            return []
-        query_embedding = self.embedding_model.embed([query])[0]
-        history_embeddings = self.embedding_model.embed([h.query for h in self.prompt_transformer.history])
-        similarities = cosine_similarity([query_embedding], history_embeddings)[0]
-        return [self.prompt_transformer.history[i] for i in np.where(similarities > 0.8)[0]]
-
-    def _bm25_search(self, query: str, n_results: int = 10) -> List[Dict[str, Any]]:
-        """Perform BM25 keyword search."""
-        query_tokens = query.lower().split()
-
-        # Ensure BM25 is initialized
-        if not hasattr(self, '_bm25'):
-            raise ValueError("BM25 model not initialized. Call `initialize_bm25` before using BM25 search.")
-
-        doc_scores = self._bm25.get_scores(query_tokens)
-        top_indices = sorted(range(len(doc_scores)), key=lambda i: doc_scores[i], reverse=True)[:n_results]
-
-        results = []
-        for idx in top_indices:
-            results.append({
-                'content': self._doc_mapping[idx]['content'],
-                'metadata': self._doc_mapping[idx].get('metadata', {}),
-                'score': float(doc_scores[idx])
-            })
-        return results
 
     def _merge_search_results(
             self,
@@ -1458,6 +1457,43 @@ class UnifiedRAPTORSystem:
 
         return merged_results_list
 
+    def _bm25_search(self, query: str, n_results: int = 10) -> List[Dict[str, Any]]:
+        """Perform BM25 keyword search."""
+        query_tokens = query.lower().split()
+
+        # Ensure BM25 is initialized
+        if not hasattr(self, '_bm25'):
+            raise ValueError("BM25 model not initialized. Call `initialize_bm25` before using BM25 search.")
+
+        doc_scores = self._bm25.get_scores(query_tokens)
+        top_indices = sorted(range(len(doc_scores)), key=lambda i: doc_scores[i], reverse=True)[:n_results]
+
+        results = []
+        for idx in top_indices:
+            results.append({
+                'content': self._doc_mapping[idx]['content'],
+                'metadata': self._doc_mapping[idx].get('metadata', {}),
+                'score': float(doc_scores[idx])
+            })
+        return results
+
+    def _hybrid_search(self, query: str, n_results: int = 10) -> List[Dict[str, Any]]:
+        """Perform hybrid search combining semantic and keyword-based retrieval."""
+        semantic_results = self._semantic_search(query, n_results)
+        keyword_results = self._bm25_search(query, n_results)
+        return self._merge_search_results(semantic_results, keyword_results)
+
+    def _aggregate_context(self, contexts: List[str], query: str) -> str:
+        """Combine multiple contexts into a coherent response."""
+        prompt = f"""Combine the following contexts to answer the question:\n\n{query}\n\nContexts:\n{contexts}"""
+        return self.llm.generate_response_with_context(prompt=prompt, context="", max_new_tokens=500)
+
+    def _generate_response(self, query: str, context: str) -> str:
+        """Generate the final response based on the aggregated context."""
+        prompt = f"""Answer the question based on the context below:\n\nContext: {context}\n\nQuestion: {query}"""
+        return self.llm.generate_response_with_context(prompt=prompt, context=context, max_new_tokens=300)
+
+
 
 def main():
     # Configuration
@@ -1471,6 +1507,14 @@ def main():
     embedding_model = HuggingFaceEmbedding(
         model_name="dunzhang/stella_en_1.5B_v5",
         device="cuda" if torch.cuda.is_available() else "cpu"
+    )
+
+    memory_bank = MemoryDB(
+        similarity_threshold=0.45,  # Base threshold; dynamically adjusted in UnifiedRAPTORSystem
+        fallback_threshold=3,
+        max_memory_size=1000,
+        compression_ratio=8,
+        embedding_model=embedding_model
     )
 
     vector_store = OptimizedChromaDBStore(
@@ -1494,9 +1538,10 @@ def main():
         embedding_model_sentece=semantic_model,
         cache_size=1000,
         cross_encoder_name="cross-encoder/ms-marco-MiniLM-L-12-v2",
-        reranking_top_k=10,
-        similarity_threshold=0.65,
-        use_hybrid_search=True
+        reranking_top_k=5,
+        similarity_threshold=0.45,
+        use_hybrid_search=True,
+        memory_bank=memory_bank
     )
 
     doc_processor = DocumentProcessor(chunk_size=1000, embedding_model=embedding_model)
@@ -1517,20 +1562,32 @@ def main():
 
     # Prepopulate memory bank
     questions_answers = [
-        ("Question: Is Hirschsprung disease classified as a single-gene disorder or influenced by multiple factors?",
+        ("Question: Is Hirschsprung disease a Mendelian or a multifactorial disorder?",
          "Answer: Coding sequence mutations in RET, GDNF, EDNRB, EDN3, and SOX10 are involved in the development of Hirschsprung disease. The majority of these genes was shown to be related to Mendelian syndromic forms of Hirschsprung's disease, whereas the non-Mendelian inheritance of sporadic non-syndromic Hirschsprung disease proved to be complex; involvement of multiple loci was demonstrated in a multiplicative model."),
-        ("Question: Identify signaling molecules that interact with the EGFR receptor.",
+        ("Question: List signaling molecules (ligands) that interact with the receptor EGFR?",
          "Answer: The 7 known EGFR ligands are: epidermal growth factor (EGF), betacellulin (BTC), epiregulin (EPR), heparin-binding EGF (HB-EGF), transforming growth factor-α [TGF-α], amphiregulin (AREG), and epigen (EPG)."),
-        ("Question: Do long non-coding RNAs get spliced?",
+        ("Question: Are long non-coding RNAs spliced?",
          "Answer: Long non coding RNAs appear to be spliced through the same pathway as the mRNAs"),
-        ("Question: Do cells release RANKL?",
+        ("Question: Is RANKL secreted from the cells?",
          "Answer: Receptor activator of nuclear factor κB ligand (RANKL) is a cytokine predominantly secreted by osteoblasts."),
-        ("Question: What miRNAs show potential as biomarkers for epithelial ovarian cancer?",
+        ("Question: Which miRNAs could be used as potential biomarkers for epithelial ovarian cancer?",
          "Answer: miR-200a, miR-100, miR-141, miR-200b, miR-200c, miR-203, miR-510, miR-509-5p, miR-132, miR-26a, let-7b, miR-145, miR-182, miR-152, miR-148a, let-7a, let-7i, miR-21, miR-92 and miR-93 could be used as potential biomarkers for epithelial ovarian cancer."),
+        ("Question: Which acetylcholinesterase inhibitors are used for treatment of myasthenia gravis?",
+         "Answer: Pyridostigmine and neostygmine are acetylcholinesterase inhibitors that are used as first-line therapy for symptomatic treatment of myasthenia gravis. Pyridostigmine is the most widely used acetylcholinesterase inhibitor. Extended release pyridotsygmine and novel acetylcholinesterase inhibitors inhibitors with oral antisense oligonucleotides are being studied."),
+        ("Question: Has Denosumab (Prolia) been approved by FDA?",
+         "Answer: Yes, Denosumab was approved by the FDA in 2010."),
+        ("Question: Which are the different isoforms of the mammalian Notch receptor?",
+         "Answer: Notch signaling is an evolutionarily conserved mechanism, used to regulate cell fate decisions. Four Notch receptors have been identified in man: Notch-1, Notch-2, Notch-3 and Notch-4."),
+        ("Question: Orteronel was developed for treatment of which cancer?",
+         "Answer: Orteronel was developed for treatment of castration-resistant prostate cancer."),
+        ("Question: Is the monoclonal antibody Trastuzumab (Herceptin) of potential use in the treatment of prostate cancer?",
+         "Answer: Although is still controversial, Trastuzumab (Herceptin) can be of potential use in the treatment of prostate cancer overexpressing HER2, either alone or in combination with other drugs."),
         ("Question: What are the Yamanaka factors?",
          "Answer: The Yamanaka factors are the OCT4, SOX2, MYC, and KLF4 transcription factors"),
-        ("Question: Could the monoclonal antibody Trastuzumab (Herceptin) be beneficial in prostate cancer treatment?",
-         "Answer: Although is still controversial, Trastuzumab (Herceptin) can be of potential use in the treatment of prostate cancer overexpressing HER2, either alone or in combination with other drugs.")
+        ("Question: Where is the protein Pannexin1 located?",
+         "Answer: The protein Pannexin1 is localized to the plasma membranes."),
+        ("Question: Which currently known mitochondrial diseases have been attributed to POLG mutations?",
+         "Answer: What is the effect of ivabradine in heart failure after myocardial infarction?")
     ]
     raptor_system.prepopulate_memory_bank(questions_answers)
 
@@ -1553,22 +1610,31 @@ def main():
     results = {}
     for question in questions:
         # Call the updated query method
-        answer = raptor_system.query(question, n_results=3)
+        result = raptor_system.query(question, n_results=3)
 
         # Store the question and answer in the results dictionary
         results[question] = {
-            "response": answer
+            "response": result,
+            # "context": result.context,
+            # "confidence": result.confidence
         }
 
         # Print the question and answer
         print(f"\n❀❀ Question ❀❀: {question}")
-        print(f"❀❀ Answer ❀❀: {answer}")
+        print(f"❀❀ Answer ❀❀: {result}")
+        # print(f"\n Context: {result.context}")
 
-    with open("unified_raptor_with_memory.json", "w") as file:
-        json.dump(results, file, indent=4)
-    print("Results saved to unified_raptor_with_memory.json")
+    # with open("unified_raptor_with_memory.json", "w") as file:
+    #     json.dump(results, file, indent=4)
+    # print("Results saved to unified_raptor_with_memory.json")
 
 
 if __name__ == "__main__":
     main()
-
+# ====================================================================
+# There are 4 questiosn ther were extracted from MemoryDB specifically:
+# 1) Which miRNAs could be used as potential biomarkers for epithelial ovarian cancer?
+# 2) Which are the different isoforms of the mammalian Notch receptor?
+# 3) Which are the Yamanaka factors?
+# 4) Is RANKL secreted from the cells?
+# ====================================================================

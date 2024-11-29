@@ -1,20 +1,22 @@
-import os
-import gc
-import json
-import torch
-import pandas as pd
-from pathlib import Path
-from typing import List, Optional, Dict, Any, Tuple
-from dataclasses import dataclass
-import logging
-from logging.handlers import RotatingFileHandler
-from abc import ABC, abstractmethod
 from my_rag.components.embeddings.huggingface_embedding import HuggingFaceEmbedding
 from langchain_community.document_loaders import PyPDFDirectoryLoader
 from langchain.text_splitter import RecursiveCharacterTextSplitter
-from my_rag.components.memory_db.junk_memo_rag import MemoryDB
 from my_rag.components.llms.huggingface_llm import HuggingFaceLLM
+from my_rag.components.memory_db.memo_db import MemoryDB
+from typing import List, Optional, Dict, Any, Tuple
+from logging.handlers import RotatingFileHandler
+from abc import ABC, abstractmethod
+from dataclasses import dataclass
+from pathlib import Path
+import pandas as pd
 import chromadb
+import logging
+import torch
+import json
+import os
+import gc
+
+
 
 DEFAULT_DATA_PATH = "data_test"
 logging.basicConfig(level=logging.INFO)
@@ -127,6 +129,7 @@ class ChromaDBStore(VectorStore):
         """Return the current document count."""
         return self.document_count
 
+
 class DocumentProcessor:
     """Handles document loading and preprocessing."""
     def __init__(self, chunk_size: int = 1000, chunk_overlap: int = 115):
@@ -160,8 +163,8 @@ class DocumentProcessor:
 
 def log_cuda_memory_usage(message=""):
     if torch.cuda.is_available():
-        allocated = torch.cuda.memory_allocated() / (1536 ** 2)
-        reserved = torch.cuda.memory_reserved() / (1536 ** 2)
+        allocated = torch.cuda.memory_allocated() / (1024 ** 2)
+        reserved = torch.cuda.memory_reserved() / (1024 ** 2)
         logger.info(f"{message} - CUDA memory allocated: {allocated:.2f} MB, reserved: {reserved:.2f} MB")
     else:
         logger.info(f"{message} - CUDA not available")
@@ -233,6 +236,9 @@ class RAGSystem:
         self.llm = llm
         self.logger = logger or self._setup_default_logger()
 
+        # Historical query feedback
+        self.query_feedback = {}
+
     @staticmethod
     def _setup_default_logger() -> logging.Logger:
         """Create a default logger with file rotation."""
@@ -285,24 +291,29 @@ class RAGSystem:
             self.logger.error(f"Failed to index documents: {str(e)}")
             raise
 
+    def update_feedback(self, query: str, success: bool) -> None:
+        """Update feedback for a query."""
+        if query not in self.query_feedback:
+            self.query_feedback[query] = {"success": 0, "total": 0}
+        self.query_feedback[query]["success"] += int(success)
+        self.query_feedback[query]["total"] += 1
+
     def prepopulate_memory_bank(self, questions_answers: List[Tuple[str, str]]) -> None:
         """Populate memory bank with question-answer pairs."""
-        for question, answer in questions_answers:
-            answer_embedding = self.embedding_model.embed([answer])[0]
-            self.memory_bank.add_to_memory(answer_embedding, answer)
-            self.logger.info(f"Populated memory with answer: {answer[:50]}...")
+        self.memory_bank.prepopulate_memory_bank(questions_answers)
+        self.logger.info(f"Memory bank prepopulated with {len(questions_answers)} entries.")
 
     def query(self, question: str, n_results: int = 3) -> str:
         """Process a question and return an answer."""
         try:
-            # Step 1: Embed the question for retrieval
+            # Step 1: Embed the query for retrieval
             question_embedding = self.embedding_model.embed([question])[0]
 
-            # Step 2: Attempt to retrieve from MemoryDB
+            # Step 3: Attempt to retrieve from MemoryDB
             memory_results, similarity_scores = self.memory_bank.retrieve_top_k(question_embedding, k=n_results)
 
             if memory_results and all(score >= self.memory_bank.similarity_threshold for score in similarity_scores):
-                context = memory_results[0]  # Only the top relevant answer
+                context = memory_results[0]  # Top relevant answer
                 self.logger.info("Retrieved context from MemoryDB.")
             else:
                 # Fallback to ChromaDBStore
@@ -310,28 +321,28 @@ class RAGSystem:
                     query_embeddings=[question_embedding.tolist()],
                     n_results=n_results
                 )
-
                 relevant_docs = results.get("documents", [])
                 if not relevant_docs:
                     self.logger.warning("No relevant documents found for query.")
                     return "No relevant information found to answer the question."
-
-                # Combine document contents for context
-                context = "\n\n".join(relevant_docs[0])
+                context = "\n\n".join(relevant_docs[0])  # Combine retrieved documents
                 self.logger.info("Retrieved context from ChromaDBStore.")
 
-            # Step 4: Generate answer using LLM
+            # Step 4: Generate response using LLM
             answer = self.llm.generate_response_with_context(
                 context=context,
                 prompt=question,
                 max_new_tokens=250
             )
 
+            # Step 5: Log success and return
+            self.update_feedback(question, success=True)
             self.logger.info(f"Successfully generated answer for question: {question[:50]}...")
             return answer
 
         except Exception as e:
             self.logger.error(f"Error processing query: {str(e)}")
+            self.update_feedback(question, success=False)
             raise
 
 
@@ -341,7 +352,13 @@ def main():
         model_name="dunzhang/stella_en_1.5B_v5"
     )
     vector_store = ChromaDBStore(collection_name="main_data_bank")
-    memory_bank = MemoryDB(similarity_threshold=0.29, max_memory_size=1000, compression_ratio=8)
+    memory_bank = MemoryDB(
+        similarity_threshold=0.29,
+        max_memory_size=1000,
+        compression_ratio=8,
+        embedding_model=embedding_model
+    )
+
     llm = HuggingFaceLLM(
         model_name="meta-llama/Meta-Llama-3-8B-Instruct",
         device="cuda" if torch.cuda.is_available() else "cpu",
@@ -365,20 +382,32 @@ def main():
 
     # Define question-answer pairs for memory bank pre-population
     questions_answers = [
-        ("Question: Is Hirschsprung disease classified as a single-gene disorder or influenced by multiple factors?",
+        ("Question: Is Hirschsprung disease a Mendelian or a multifactorial disorder?",
          "Answer: Coding sequence mutations in RET, GDNF, EDNRB, EDN3, and SOX10 are involved in the development of Hirschsprung disease. The majority of these genes was shown to be related to Mendelian syndromic forms of Hirschsprung's disease, whereas the non-Mendelian inheritance of sporadic non-syndromic Hirschsprung disease proved to be complex; involvement of multiple loci was demonstrated in a multiplicative model."),
-        ("Question: Identify signaling molecules that interact with the EGFR receptor.",
+        ("Question: List signaling molecules (ligands) that interact with the receptor EGFR?",
          "Answer: The 7 known EGFR ligands are: epidermal growth factor (EGF), betacellulin (BTC), epiregulin (EPR), heparin-binding EGF (HB-EGF), transforming growth factor-α [TGF-α], amphiregulin (AREG), and epigen (EPG)."),
-        ("Question: Do long non-coding RNAs get spliced?",
+        ("Question: Are long non-coding RNAs spliced?",
          "Answer: Long non coding RNAs appear to be spliced through the same pathway as the mRNAs"),
-        ("Do cells release RANKL?",
-         "Receptor activator of nuclear factor κB ligand (RANKL) is a cytokine predominantly secreted by osteoblasts."),
-        # ("What miRNAs show potential as biomarkers for epithelial ovarian cancer?",
-        #  "miR-200a, miR-100, miR-141, miR-200b, miR-200c, miR-203, miR-510, miR-509-5p, miR-132, miR-26a, let-7b, miR-145, miR-182, miR-152, miR-148a, let-7a, let-7i, miR-21, miR-92 and miR-93 could be used as potential biomarkers for epithelial ovarian cancer."),
-        # ("What are the Yamanaka factors?",
-        #  "The Yamanaka factors are the OCT4, SOX2, MYC, and KLF4 transcription factors"),
-        # ("Could the monoclonal antibody Trastuzumab (Herceptin) be beneficial in prostate cancer treatment?",
-        #  "Although is still controversial, Trastuzumab (Herceptin) can be of potential use in the treatment of prostate cancer overexpressing HER2, either alone or in combination with other drugs.")
+        ("Question: Is RANKL secreted from the cells?",
+         "Answer: Receptor activator of nuclear factor κB ligand (RANKL) is a cytokine predominantly secreted by osteoblasts."),
+        ("Question: Which miRNAs could be used as potential biomarkers for epithelial ovarian cancer?",
+         "Answer: miR-200a, miR-100, miR-141, miR-200b, miR-200c, miR-203, miR-510, miR-509-5p, miR-132, miR-26a, let-7b, miR-145, miR-182, miR-152, miR-148a, let-7a, let-7i, miR-21, miR-92 and miR-93 could be used as potential biomarkers for epithelial ovarian cancer."),
+        ("Question: Which acetylcholinesterase inhibitors are used for treatment of myasthenia gravis?",
+         "Answer: Pyridostigmine and neostygmine are acetylcholinesterase inhibitors that are used as first-line therapy for symptomatic treatment of myasthenia gravis. Pyridostigmine is the most widely used acetylcholinesterase inhibitor. Extended release pyridotsygmine and novel acetylcholinesterase inhibitors inhibitors with oral antisense oligonucleotides are being studied."),
+        ("Question: Has Denosumab (Prolia) been approved by FDA?",
+         "Answer: Yes, Denosumab was approved by the FDA in 2010."),
+        ("Question: Which are the different isoforms of the mammalian Notch receptor?",
+         "Answer: Notch signaling is an evolutionarily conserved mechanism, used to regulate cell fate decisions. Four Notch receptors have been identified in man: Notch-1, Notch-2, Notch-3 and Notch-4."),
+        ("Question: Orteronel was developed for treatment of which cancer?",
+         "Answer: Orteronel was developed for treatment of castration-resistant prostate cancer."),
+        ("Question: Is the monoclonal antibody Trastuzumab (Herceptin) of potential use in the treatment of prostate cancer?",
+         "Answer: Although is still controversial, Trastuzumab (Herceptin) can be of potential use in the treatment of prostate cancer overexpressing HER2, either alone or in combination with other drugs."),
+        ("Question: What are the Yamanaka factors?",
+         "Answer: The Yamanaka factors are the OCT4, SOX2, MYC, and KLF4 transcription factors"),
+        ("Question: Where is the protein Pannexin1 located?",
+         "Answer: The protein Pannexin1 is localized to the plasma membranes."),
+        ("Question: Which currently known mitochondrial diseases have been attributed to POLG mutations?",
+         "Answer: What is the effect of ivabradine in heart failure after myocardial infarction?")
     ]
 
     # Prepopulate memory bank
@@ -391,8 +420,14 @@ def main():
         "Are long non-coding RNAs spliced?",
         "Is RANKL secreted from the cells?",
         "Which miRNAs could be used as potential biomarkers for epithelial ovarian cancer?",
+        "Which acetylcholinesterase inhibitors are used for treatment of myasthenia gravis?",
+        "Has Denosumab (Prolia) been approved by FDA?",
+        "Which are the different isoforms of the mammalian Notch receptor?",
+        "Orteronel was developed for treatment of which cancer?",
+        "Is the monoclonal antibody Trastuzumab (Herceptin) of potential use in the treatment of prostate cancer?",
         "Which are the Yamanaka factors?",
-        "Is the monoclonal antibody Trastuzumab (Herceptin) of potential use in the treatment of prostate cancer?"
+        "Where is the protein Pannexin1 located?",
+        "Which currently known mitochondrial diseases have been attributed to POLG mutations?"
     ]
 
     # Dictionary to store question-answer pairs
@@ -408,50 +443,21 @@ def main():
         print(f"❀❀ Answer ❀❀: {answer}")
 
     # Save the results in JSON format
-    output_file = "question_answers.json"
+    output_file = "question_answers_mar.json"
     with open(output_file, "w") as file:
         json.dump(answers, file, indent=4)
 
     print(f"\nResults saved to {output_file}")
 
-    # # Prepopulate memory bank
-    # rag_system.prepopulate_memory_bank(questions_answers)
-    #
-    # # Example query
-    # question = "Is Hirschsprung disease classified as a single-gene disorder or influenced by multiple factors?"
-    # answer = rag_system.query(question)
-    # print(f"\n\n❀❀ Question ❀❀: {question}")
-    # print(f"❀❀ Answer ❀❀: {answer}")
-
 
 if __name__ == "__main__":
     main()
 
-
-
-import json
-
-# Example list of questions
-# questions = [
-#     "Is Hirschsprung disease classified as a single-gene disorder or influenced by multiple factors?",
-#     "What are the Yamanaka factors?",
-#     "Can long non-coding RNAs be spliced?",
-#     "Identify signaling molecules that interact with the EGFR receptor."
-# ]
-#
-# # Dictionary to store question-answer pairs
-# answers = {}
-#
-# # Process each question and store the answer
-# for question in questions:
-#     answer = rag_system.query(question)
-#     answers[question] = answer  # Store the question-answer pair in the dictionary
-#
-# # Save the results in JSON format
-# output_file = "question_answers.json"
-# with open(output_file, "w") as file:
-#     json.dump(answers, file, indent=4)
-#
-# print(f"Results saved to {output_file}")
-
-
+# ====================================================================
+# # There are 5 questions that were extracted from MemoryDB specifically:
+# 1. Is Hirschsprung disease a Mendelian or a multifactorial disorder?
+# 2. Is RANKL secreted from the cells?
+# 3. Which miRNAs could be used as potential biomarkers for epithelial ovarian cancer?
+# 4. Which are the different isoforms of the mammalian Notch receptor?
+# 5. Which are the Yamanaka factors?
+# ====================================================================

@@ -121,9 +121,6 @@
 ## Basic RAPTOR Diagram
 ![Basic RAPTOR Diagram](RAPTOR_rag.png)
 
-## Basic ColBERT Diagram
-![Basic ColBERT Diagram](ColBERT_rag.png)
-
 ---
 ### Date: Nov 19, 2024
 

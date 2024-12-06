@@ -12,7 +12,7 @@
 ```
 .
 ├── my_rag
-│   └── components
+│   ├── components
 │   │    ├── embeddings
 │   │    ├── llms
 │   │    ├── memory_db

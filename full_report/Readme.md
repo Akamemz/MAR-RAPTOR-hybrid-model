@@ -108,11 +108,11 @@
     - **Reporting and Visualization:** Begin the report on RAG evaluation, documenting results and creating a diagram to illustrate the evaluation flow and proposed application.
 
 - **Action Items:**
-    * [ ] Improve coherence and relevance of generated outputs in the RAG pipeline.
-    * [ ] Define and finalize the evaluation metrics for embedding, retrieval, and generation stages.
-    * [ ] Run embedding, retrieval, and generation tests, then evaluate the results using the defined metrics.
-    * [ ] Draft a proposal for using RAG in real-time legal document summarization.
-    * [ ] Start the report with metrics, and evaluation results, and create a diagram to visualize the evaluation process and proposed application.
+    * [&check;] Improve coherence and relevance of generated outputs in the RAG pipeline.
+    * [&check;] Define and finalize the evaluation metrics for embedding, retrieval, and generation stages.
+    * [&check;] Run embedding, retrieval, and generation tests, then evaluate the results using the defined metrics.
+    * [&check;] Draft a proposal for using RAG in real-time legal document summarization.
+    * [&check;] Start the report with metrics, and evaluation results, and create a diagram to visualize the evaluation process and proposed application.
 
 ---
 ## Basic MAR Diagram
@@ -121,6 +121,9 @@
 ## Basic RAPTOR Diagram
 ![Basic RAPTOR Diagram](RAPTOR_rag.png)
 
+
+## Hybrid rag Diagram
+![Hybrid_rag Diagram](HYBRID_rag.png)
 ---
 ### Date: Nov 19, 2024
 

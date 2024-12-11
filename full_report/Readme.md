@@ -122,6 +122,10 @@
 ![Basic RAPTOR Diagram](RAPTOR_rag.png)
 
 
+## ColBERT Diagram
+![ColBERT Diagram](ColBERT_rag.png)
+
+
 ## Hybrid rag Diagram
 ![Hybrid_rag Diagram](HYBRID_rag.png)
 ---
